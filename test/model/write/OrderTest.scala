@@ -11,7 +11,7 @@ class OrderTest extends FlatSpec with Matchers {
 
   it should "accept AddItem command and transition to NonEmptyOrder" in new InMemoryOrderTestSupport {
 
-    orderRef ! CreateOrder
+//    orderRef ! CreateOrder
     orderRef ! AddItem(ItemId("001"), "test", 200)
 
     expectEvent[OrderWasCreated]
