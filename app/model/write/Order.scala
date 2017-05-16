@@ -80,25 +80,80 @@ case class NonEmptyOrder(number: OrderNumber, items: List[Item] = List.empty) ex
     */
   def addItems(stockService: StockService) =
     Order.actions
+      .commandHandler {
+        eventually.OneEvent {
+          case cmd: AddItem =>
+            // AddItem requires a 'remote' call and returns a Future
+            stockService.reserveItem(cmd.itemId).map { _ =>
+              ItemWasAdded(number, cmd.itemId, cmd.name, cmd.price)
+            }
+        }
+      }
+      .eventHandler {
+        case evt: ItemWasAdded =>
+          val item = Item(evt.itemId, evt.name, evt.price)
+          copy(items = item :: items)
+      }
 
   /**
     * Command and Event handlers for removing an item from the [[Order]].
     */
   def removeItems =
     Order.actions
+      .commandHandler {
+        maybe.OneEvent {
+          case cmd: RemoveItem =>
+            // TODO: what about the item reservation?
+            // if there is an item for this code, emit event
+            // otherwise do nothing
+            items.find(_.itemId == cmd.itemId).map { _ =>
+              ItemWasRemoved(number, cmd.itemId)
+            }
+        }
+      }
+      .eventHandler {
+        case evt: ItemWasRemoved =>
+          val updatedItems = Lists.removeFirst(items)(_.itemId == evt.itemId)
+
+          // is order empty now? go back to start
+          if (updatedItems.isEmpty) EmptyOrder(number)
+          else copy(items = updatedItems)
+
+      }
 
   /**
     * Command and Event handlers for removing an item from the [[Order]].
     */
   def cancel =
     Order.actions
+      .commandHandler {
+        // TODO: what about the reservations?
+        OneEvent {
+          case CancelOrder => OrderWasCancelled(number)
+        }
+      }
+      .eventHandler {
+        case _: OrderWasCancelled => CancelledOrder(number)
+      }
 
   /**
     * Command and Event handlers for paying the [[Order]].
     */
   def pay(reservationService: StockService, billingService: BillingService) =
     Order.actions
-
+      .commandHandler {
+        eventually.OneEvent {
+          case cmd: PayOrder =>
+            billingService
+              .makePayment(cmd.accountNumber, number.value, totalAmount)
+              .map { _ =>
+                OrderWasPayed(number, cmd.accountNumber)
+              }
+        }
+      }
+      .eventHandler {
+        case evt: OrderWasPayed => PayedOrder(number)
+      }
 }
 
 case class PayedOrder(number: OrderNumber) extends Order {
