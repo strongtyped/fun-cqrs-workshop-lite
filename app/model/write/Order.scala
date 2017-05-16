@@ -28,9 +28,30 @@ case class EmptyOrder(number: OrderNumber) extends Order {
 
   def addFirstItem(stockService: StockService) =
     Order.actions
+      .commandHandler {
+        eventually.OneEvent {
+          case AddItem(itemId, name, price) =>
+            stockService.reserveItem(itemId).map { _ =>
+              ItemWasAdded(number, itemId, name, price)
+            }
+        }
+      }
+      .eventHandler {
+        case ItemWasAdded(_, itemId, name, price) =>
+          NonEmptyOrder(number, List(Item(itemId, name, price)))
+      }
 
   def cancel =
     Order.actions
+      .commandHandler {
+        // notice that an EmptyOrder doesn't have to cancel any reservation
+        OneEvent {
+          case CancelOrder => OrderWasCancelled(number)
+        }
+      }
+      .eventHandler {
+        case _: OrderWasCancelled => CancelledOrder(number)
+      }
 
 }
 
@@ -107,6 +128,14 @@ object Order extends Types[Order] {
   /** factory actions to bootstrap aggregate */
   def createActions(number: OrderNumber, stockService: StockService) =
     actions
+      .commandHandler {
+        OneEvent {
+          case CreateOrder => OrderWasCreated(number)
+        }
+      }
+      .eventHandler {
+        case OrderWasCreated(_) => EmptyOrder(number)
+      }
 
   def behavior(number: OrderNumber, stockService: StockService, billingService: BillingService) = {
 
