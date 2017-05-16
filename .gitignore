@@ -1,0 +1,10 @@
+target
+.idea
+.ensime
+*.iml
+.DS_Store
+journal/
+snapshots/
+*.log
+index.html
+last.json
