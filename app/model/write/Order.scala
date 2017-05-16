@@ -161,7 +161,9 @@ case class PayedOrder(number: OrderNumber) extends Order {
   /** end-of-life, must reject all commands */
   def rejectAllCommands =
     Order.actions
-
+      .rejectCommand {
+        case anyCommand => new CommandException(s"Order [${number.value}] is already payed ")
+      }
 }
 
 case class CancelledOrder(number: OrderNumber) extends Order {
@@ -169,7 +171,9 @@ case class CancelledOrder(number: OrderNumber) extends Order {
   /** end-of-life, must reject all commands */
   def rejectAllCommands =
     Order.actions
-
+      .rejectCommand {
+        case anyCommand => new CommandException(s"Order [${number.value}] was cancelled ")
+      }
 }
 
 object Order extends Types[Order] {
