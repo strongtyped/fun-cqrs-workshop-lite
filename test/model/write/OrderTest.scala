@@ -7,11 +7,26 @@ import wiring.{ InsufficientSaldoException, ItemOutOfStockException }
 
 class OrderTest extends FlatSpec with Matchers {
 
+  behavior of "An non-existing Order"
+
+  it should "accept AddItem command and transition to NonEmptyOrder" in new InMemoryOrderTestSupport {
+
+    orderRef ! AddItem(ItemId("001"), "test", 200)
+
+    expectEvent[OrderWasCreated]
+    expectEvent[ItemWasAdded]
+    expectNoMoreEvents()
+
+    // checking that order is now an 'NonEmptyOrder'
+    orderRef.state() shouldBe a[NonEmptyOrder]
+
+  }
+
   behavior of "An EmptyOrder"
 
   it should "accept AddItem command and transition to NonEmptyOrder" in new InMemoryOrderTestSupport {
 
-//    orderRef ! CreateOrder
+    orderRef ! CreateOrder
     orderRef ! AddItem(ItemId("001"), "test", 200)
 
     expectEvent[OrderWasCreated]

@@ -192,6 +192,17 @@ object Order extends Types[Order] {
           case CreateOrder => OrderWasCreated(number)
         }
       }
+      .commandHandler {
+        eventually.ManyEvents {
+          case AddItem(itemId, name, price) =>
+            stockService.reserveItem(itemId).map { _ =>
+              List(
+                OrderWasCreated(number),
+                ItemWasAdded(number, itemId, name, price)
+              )
+            }
+        }
+      }
       .eventHandler {
         case OrderWasCreated(_) => EmptyOrder(number)
       }
